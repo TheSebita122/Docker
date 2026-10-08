@@ -1,0 +1,96 @@
+crear carpetas, etc.
+
+cd C:\proyectos
+mkdir dockerVolumes
+cd dockerVolumes
+
+Con PHP
+
+
+vim Dockerfile
+
+
+FROM php:8.3-apache
+
+RUN docker-php-ext-install pdo_mysql
+
+COPY index.php /var/www/html/index.php
+
+------------------------------------------------------
+
+index.php
+
+<?php
+$host = getenv('DB_HOST');
+$database = getenv('DB_NAME');
+$user = getenv('DB_USER');
+$password = getenv('DB_PASSWORD');
+
+$conexion = new PDO("mysql:host=$host;dbname=$database",$user,$password);
+
+$consulta = $conexion->query('select * from nombres');
+
+$lista = '';
+
+while($fila = $consulta->fetch(PDO::FETCH_ASSOC)){
+        $lista .= "<li>{$fila['id']}: {$fila['nombre']}</li>";
+}
+
+echo "<ul>$lista</ul>";
+?>
+
+--------------------------------------------------------------------------
+
+vim nube.sql
+
+CREATE DATABASE IF NOT EXISTS nube;
+
+use nube;
+
+CREATE TABLE IF NOT EXISTS nombres(
+        id int AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(100)
+        );
+
+INSERT INTO nombres (nombre) VALUES ('profe'),('quiero decimas');
+
+---------------------------------------------------------------------------
+
+vim docker-compose.yml
+
+
+services:
+  app:
+    build: .
+    ports:
+      - "8081:80"
+    environment:
+      DB_HOST: db
+      DB_NAME: nube
+      DB_USER: root
+      DB_PASSWORD: clase123
+    depends_on:
+      - db
+
+  db:
+    image: mariadb:11
+
+    environment:
+      MYSQL_ROOT_PASSWORD: clase123
+
+    volumes:
+      - datos_mariadb:/var/lib/mysql
+      - ./nube.sql:/docker-entrypoint-initdb.d/nube.sql:ro
+
+volumes:
+  datos_mariadb:
+
+-------------------------------------------------------------------------
+
+despues de tener todo 
+
+docker compose up -d --build
+
+y para eliminar en caso de que te equivoques
+
+docker compose down

@@ -1,0 +1,125 @@
+Crear carpetas, etc.
+
+con node
+
+---------------------------------------------
+Dockerfile
+
+FROM node:22-alpine
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+COPY index.js ./
+CMD ["node", "index.js"]
+---------------------------------------------
+
+package.json
+
+{
+    "name": "Docker",
+    "version": "1.0.0",
+    "dependencies": {
+        "express": "^5.2",
+        "mysql2": "^3.24"
+    }
+}
+---------------------------------------------
+
+index.js
+
+const express = require('express');
+const MySQL = require('mysql2/promise');
+
+const app = express();
+
+const datosDb = {
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD
+};
+
+app.get('/', async (solicitud, respuesta) => {
+    const conexion = await MySQL.createConnection(datosDb);
+    const [filas] = await conexion.query('select * from nombres');
+
+    let lista = '';
+    filas.forEach((fila) => {
+        lista += `<li>${fila.id}: ${fila.nombre}</li>`;
+    });
+
+    const pagina = `<ul>${lista}</ul>`;
+    respuesta.send(pagina);
+    await conexion.end();
+});
+
+app.listen(3000, '0.0.0.0', () => {
+    console.log('Corriendo');
+});
+
+--------------------------------------------------
+
+
+docker-compose.yml
+
+services:
+  app:
+    build: .
+    ports:
+      - "8082:3000"
+    environment:
+      DB_HOST: db
+      DB_NAME: nube
+      DB_USER: root
+      DB_PASSWORD: clase123
+  db:
+    image: mariadb:11
+    environment:
+      MYSQL_ROOT_PASSWORD: clase123
+
+
+    volumes:
+      - datos_mariadb:/var/lib/mysql
+      - ./nube.sql:/docker-entrypoint-initdb.d/nube.sql:ro
+volumes:
+  datos_mariadb:
+
+--------------------------------------------
+
+vim nube.sql
+
+CREATE DATABASE IF NOT EXISTS nube;
+
+use nube;
+
+CREATE TABLE IF NOT EXISTS nombres(
+        id int AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(100)
+        );
+
+INSERT INTO nombres (nombre) VALUES ('profe'),('quiero decimas');
+
+------------------------------------------------
+
+
+después
+
+docker compose up -d --build
+
+-------------------------------------------------
+
+docker compose exec db mariadb -uroot -p
+
+create database nube;
+use nube;
+create table nombres (id int auto_increment primary key, nombre varchar(200));
+
+insert into nombres (nombre) values ('profe quiero mis decimas');
+
+------------------------------------------------------------
+
+en caso de que te equivocas
+
+docker compose down
+docker compose up -d --build
+-------------------------------------------------------------
